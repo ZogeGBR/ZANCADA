@@ -2,10 +2,10 @@
 
 Sistemas Inteligentes Aplicados · ITU UNCuyo · 2026
 
-**Integrante:** Zoe García Badiola
-**Equipo:** (completar)
+**Integrante:** Zoe Garcia Badiola
+**Equipo:** Zoe Garcia Badiola, Ignacio Morichetti, Matias Lopez, Gonzalo Laspada, Luciano Malanca 
 **Bot de prueba:** [@Zancada_ZoeGBR_bot](https://t.me/Zancada_ZoeGBR_bot)
-**Repositorio:** (pegar acá el enlace de GitHub)
+**Repositorio:** https://github.com/ZogeGBR/ZANCADA
 
 ## 1. Qué se entrega
 
