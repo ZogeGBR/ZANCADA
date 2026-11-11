@@ -137,3 +137,59 @@ python bot.py
 ```
 
 En el `.env`, reemplazar los valores de ejemplo por el token de BotFather, la clave de Google AI Studio y el modelo (`gemini-3.5-flash-lite`). Los comandos del bot están en [`comandos_botfather.txt`](../comandos_botfather.txt).
+
+## 7. Conversación de prueba de Ignacio Morichetti
+
+**Integrante:** Ignacio Morichetti
+**Bot de prueba:** [@Zancada_MorichettiRamal_hito2bot](https://t.me/Zancada_MorichettiRamal_hito2bot)
+
+> **Aclaración.** Estas capturas no se hicieron con el código de este repositorio, sino con la versión del Hito 2 que Ignacio armó por separado para compararla con esta: <https://github.com/IgnacioMorichetti/zancada>. Es el mismo bot (Zancada, coach de running) en el nivel de la v3, con Interactions API sin estado, historial en SQLite y `/olvidar`, pero con su propio `prompts.py`. Por eso algunos textos difieren de los de este repo (por ejemplo, la respuesta de `/olvidar` y el uso de emojis).
+
+### Conversación de prueba
+
+| # | Qué se escribió | Qué demuestra | Captura |
+|---|---|---|---|
+| 1 | "Hola! Ya soy un poco experimentado en correr, corro todas las semanas unos 30 km pero me estoy preparando para una maratón el 2 de mayo del 2027" | Entiende y responde en tono con su personalidad | [01](capturas/ignacio/01_dato_del_usuario_y_conversacion.png) |
+| 2 | "Entreno 6 días a la semana, pero corro 3 de esos unicamente, en general corro uno de 5 o 7 km, otro de 10km y uno largo de 14 o 16 km. Armemos un plan ¿Cómo entro en calor antes del fondo largo? y ¿Qué me conviene comer antes de salir?" (enviado en un solo mensaje) | La conversación fluye: responde las dos preguntas y ofrece armar el plan | [01](capturas/ignacio/01_dato_del_usuario_y_conversacion.png), [02](capturas/ignacio/02_conversacion_y_pregunta_de_memoria.png) |
+| 3 | "¿Me conviene correr una carrera de 21K el mes que viene como preparación?" | Memoria: la ubica como parte de la preparación para los 42K y tiene en cuenta el fondo largo de 16 km, sin que se repitan los datos | [02](capturas/ignacio/02_conversacion_y_pregunta_de_memoria.png), [03](capturas/ignacio/03_memoria.png) |
+| 4 | Se reinició el bot (Ctrl+C a las 15:21:09 y `python bot.py` a las 15:21:14) y se preguntó "¿Te acordás para qué carrera me preparo y cuántos km corro por semana?" | Persistencia: recuerda la maratón del 2 de mayo de 2027 y los 30 km semanales en tres salidas | [04](capturas/ignacio/04_reinicio_del_bot_terminal.png), [05](capturas/ignacio/05_persistencia_y_alcance.png) |
+| 5 | "¿Me pasás una receta para hacer pizza?" | Alcance: dice con buena onda que lo suyo es el running y propone volver al entrenamiento | [05](capturas/ignacio/05_persistencia_y_alcance.png), [06](capturas/ignacio/06_alcance_y_honestidad.png) |
+| 6 | "¿Cuánto sale la inscripción a la Maratón Internacional de Mendoza y a qué hora larga?" | Honestidad: aclara que no tiene el dato confirmado y sugiere la página oficial de la carrera | [06](capturas/ignacio/06_alcance_y_honestidad.png) |
+
+### Capturas
+
+**01 · Dato del usuario y comienzo de la conversación** (después de `/olvidar`)
+
+![Captura 01 de Ignacio](capturas/ignacio/01_dato_del_usuario_y_conversacion.png)
+
+**02 · Conversación y pregunta de memoria**
+
+![Captura 02 de Ignacio](capturas/ignacio/02_conversacion_y_pregunta_de_memoria.png)
+
+**03 · Memoria**
+
+![Captura 03 de Ignacio](capturas/ignacio/03_memoria.png)
+
+**04 · Reinicio del bot en la terminal** (se tapó el id de usuario de Telegram)
+
+![Captura 04 de Ignacio](capturas/ignacio/04_reinicio_del_bot_terminal.png)
+
+**05 · Persistencia después del reinicio y alcance**
+
+![Captura 05 de Ignacio](capturas/ignacio/05_persistencia_y_alcance.png)
+
+**06 · Alcance y honestidad**
+
+![Captura 06 de Ignacio](capturas/ignacio/06_alcance_y_honestidad.png)
+
+### Ajuste del prompt de sistema
+
+En la primera prueba, al contarle que corro 30 km por semana y que me preparo para una maratón, el bot cerró la respuesta con dos preguntas juntas: *"¿cuántos días por semana venís entrenando y cómo los distribuís?, ¿te gustaría que armemos un plan semanal para empezar a ordenar las próximas semanas?"* (captura 07). En un chat uno contesta una sola y la otra se pierde. El prompt ya pedía "una sola pregunta concreta", pero solo para el caso en que faltara un dato (captura 08, línea 33). En `prompts.py` se reemplazó esa regla por una más directa y con el motivo explicado: *"Hacé como máximo una pregunta por mensaje, y nunca dos seguidas: en un chat el corredor contesta una sola y la otra se pierde"*. Después del cambio, el mismo mensaje recibió una respuesta que cierra con un único pedido: *"contame qué días de la semana preferís entrenar y cuántas veces salís habitualmente"* (captura 01).
+
+**07 · Respuesta antes del ajuste: dos preguntas juntas**
+
+![Captura 07 de Ignacio](capturas/ignacio/07_ajuste_antes_dos_preguntas.png)
+
+**08 · `prompts.py` antes del ajuste**
+
+![Captura 08 de Ignacio](capturas/ignacio/08_ajuste_prompt_antes.png)
