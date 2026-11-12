@@ -1,7 +1,6 @@
-# Zancada · coach de running en Telegram (v3)
+# Zancada · coach de running en Telegram (TIF)
 
-Bot de Telegram que conversa con Gemini con la personalidad de un coach de running,
-y recuerda la conversación aunque se reinicie.
+Bot de Telegram que conversa con Gemini con la personalidad de un coach de running, recuerda la conversación aunque se reinicie, consulta el clima real, registra entrenamientos y arma planes.
 
 📄 **Informe del Hito 2:** [`docs/INFORME_HITO2.md`](docs/INFORME_HITO2.md) (prompt de sistema, conversación de prueba con capturas y ajuste del prompt).
 
@@ -9,12 +8,14 @@ y recuerda la conversación aunque se reinicie.
 
 | Entrada | Respuesta |
 |---|---|
-| `/start` | Saludo personalizado |
-| `/help` | Lista de comandos |
+| `/start`, `/help` | Saludo y lista de comandos |
 | `/ritmo 10 52:30` | Ritmo, velocidad y tiempos estimados (fórmula de Riegel) |
-| `/olvidar` | Borra el historial de la conversación del usuario |
-| Cualquier texto | Respuesta de Gemini (Interactions API sin estado) |
-| Foto, audio, sticker | Aviso de que por ahora solo entiende texto |
+| `/registrar hoy corrí 8 km en 44 min` | Extrae distancia/tiempo/tipo con salida estructurada (JSON validado con Pydantic) y pide confirmación con botones |
+| Foto de un reloj o app | Gemini multimodal lee la captura y propone registrar el entrenamiento |
+| `/resumen` | Totales y detalle de los últimos 7 días (SQLite) |
+| `/plan` | Flujo guiado (distancia → semanas → días) y plan generado por Gemini |
+| `/olvidar` · `/borrar_entrenos` | Borra la conversación · borra los entrenamientos guardados |
+| Cualquier texto | Gemini conversa y, si hace falta, **usa herramientas** (function calling): clima de hoy y mejores horas (Open-Meteo), calcular ritmo, registrar entrenamiento, resumir la semana |
 
 ## Cómo funciona la memoria
 
@@ -25,12 +26,20 @@ El modelo no recuerda nada entre consultas. En cada mensaje, `bot.py`:
    usando la Interactions API con `store=False` (`llm.py`),
 3. guarda el mensaje y la respuesta en SQLite.
 
+## Function calling (resumen)
+
+Gemini no ejecuta nada: responde "quiero llamar a `clima_para_correr(ciudad=…)`", el bot ejecuta la función real (`tools.py`) y le devuelve el resultado; se repite (máx. 4 rondas) hasta que responde con texto. Como `store=False`, en cada ronda se reenvían los pasos anteriores. El `user_id` lo pone el bot, nunca el modelo.
+
 ## Archivos
 
-- `bot.py`: handlers de Telegram y arranque.
+- `bot.py`: handlers de Telegram, flujo `/plan` y arranque.
+- `dominio.py`: lógica pura (ritmo, Riegel, tiempos).
+- `tools.py`: herramientas que invoca Gemini (clima Open-Meteo, ritmo, registrar, resumir).
+- `schemas.py`: esquema Pydantic del entrenamiento (extracción estructurada).
+- `tests/test_integracion.py`: pruebas de punta a punta con Telegram/Gemini/Open-Meteo simulados (`python -I tests/test_integracion.py`).
 - `prompts.py`: prompt de sistema (identidad, tarea y alcance, estilo, formato, honestidad).
 - `llm.py`: consulta a Gemini.
-- `db.py` (aiosqlite): historial en SQLite.
+- `db.py` (aiosqlite): historial y entrenamientos en SQLite.
 - `docs/`: informe del Hito 2 y capturas de la conversación de prueba.
 - `.env.example`: variables necesarias. **El `.env` y el `.db` no se suben al repositorio.**
 
@@ -64,6 +73,6 @@ Y corré `python bot.py`. Se crea `zancada.db` solo la primera vez.
 | El bot olvidó todo | Se borró `zancada.db` o se usó `/olvidar` |
 | `Conflict: terminated by other getUpdates` | Hay dos copias del bot corriendo con el mismo token |
 
-## Hoja de ruta
+## Créditos y límites
 
-v1 comandos · v3 Gemini + SQLite · v4 function calling (clima con Open-Meteo y registro de entrenamientos) · v5 salida estructurada · v6 flujo guiado · v7 módulo avanzado.
+Clima: [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0; uso no comercial). Las predicciones de tiempos y los planes son orientativos; Zancada no da consejos médicos.

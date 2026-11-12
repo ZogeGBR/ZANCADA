@@ -2,7 +2,12 @@
 start - Presentación de Zancada
 help - Qué puedo hacer
 ritmo - Calcular ritmo: /ritmo 10 52:30
+registrar - Guardar un entrenamiento: /registrar hoy corrí 8 km en 44 min
+resumen - Tus entrenamientos de la semana
+plan - Armar un plan de entrenamiento paso a paso
+cancelar - Salir del armado del plan
 olvidar - Borrar la conversación
+borrar_entrenos - Borrar tus entrenamientos guardados
 
 === /setdescription (lo que se ve antes de tocar INICIAR) ===
 Soy Zancada, tu coach de running 🏃 Te ayudo a calcular ritmos, elegir el mejor horario para salir a correr y llevar el registro de tus entrenamientos.

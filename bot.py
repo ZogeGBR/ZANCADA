@@ -1,36 +1,44 @@
 """
-Zancada v3 · tu coach de running en Telegram, ahora con Gemini.
+Zancada · tu coach de running en Telegram (Trabajo Integrador Final).
 
-Qué hace esta versión (Clase 2):
+Qué hace esta versión:
   /start   -> saludo personalizado
   /help    -> lista de comandos
   /ritmo   -> calcula ritmo y predice tiempos (comando propio del dominio)
   /olvidar -> borra el historial de la conversación con este usuario
-  texto    -> conversa con Gemini (Interactions API sin estado), con la
-              personalidad definida en prompts.py y memoria en SQLite
+  /registrar <texto> -> extrae un entrenamiento de un texto libre (salida estructurada)
+  /resumen -> tus entrenamientos de los últimos 7 días
+  /plan    -> flujo guiado: arma un plan de entrenamiento con Gemini
+  foto     -> lee una captura de tu reloj/app y propone registrar el entrenamiento
+  texto    -> conversa con Gemini (Interactions API sin estado) que puede usar
+              herramientas (clima, ritmo, registrar, resumir); memoria en SQLite
   errores  -> se registran en consola y el usuario recibe un aviso amable
 
 Se ejecuta con:  python bot.py   (con el entorno virtual activado)
 """
 
 import logging
-import math
 import os
+import warnings
 
 from dotenv import load_dotenv
-from telegram import Update
+from telegram.warnings import PTBUserWarning
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    ConversationHandler,
     MessageHandler,
     filters,
 )
 
 import db
 import llm
-from llm import ErrorGemini, consultar_gemini
+from dominio import calcular_ritmo, formatear_minutos, parsear_tiempo
+from llm import ErrorGemini, consultar_gemini, extraer_entrenamiento
 
 # ---------------------------------------------------------------------------
 # Etapa 1 · Leer el token desde .env (nunca escrito en el código)
@@ -43,6 +51,8 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger("zancada")
+# Aviso informativo de PTB sobre per_message: nuestro flujo /plan funciona bien así.
+warnings.filterwarnings("ignore", message=".*per_message.*", category=PTBUserWarning)
 # httpx registra cada petición a Telegram en nivel INFO: lo bajamos para que
 # la consola no se llene de ruido (y para no imprimir la URL con el token).
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -53,64 +63,16 @@ TEXTO_AYUDA = (
     "/help - Esta ayuda\n"
     "/ritmo <km> <tiempo> - Calculo tu ritmo y te estimo otras distancias\n"
     "    Ejemplo: /ritmo 10 52:30\n"
-    "/olvidar - Borro nuestra conversación y empezamos de cero\n\n"
-    "También podés escribirme lo que quieras sobre running y te respondo. "
+    "/registrar <texto> - Guardo un entrenamiento\n"
+    "    Ejemplo: /registrar hoy corrí 8 km en 44 minutos\n"
+    "/resumen - Tus entrenamientos de la última semana\n"
+    "/plan - Armamos juntos un plan de entrenamiento\n"
+    "/olvidar - Borro nuestra conversación y empezamos de cero\n"
+    "/borrar_entrenos - Borro todos tus entrenamientos guardados\n\n"
+    "También podés mandarme una foto de tu reloj o app 📸, preguntarme por el clima "
+    "para salir a correr o escribirme lo que quieras sobre running. "
     "Me acuerdo de lo que me contás, incluso si me reinician."
 )
-
-DISTANCIAS_CLASICAS = {"5K": 5.0, "10K": 10.0, "21K": 21.0975, "42K": 42.195}
-
-
-# ---------------------------------------------------------------------------
-# Lógica del dominio (funciones comunes, sin Telegram).
-# Se pueden probar solas y en la Clase 3 Gemini las va a invocar.
-# ---------------------------------------------------------------------------
-def parsear_tiempo(texto: str) -> float:
-    """Convierte '45', '45:30' o '1:05:00' en minutos (float)."""
-    partes = texto.strip().split(":")
-    if not 1 <= len(partes) <= 3 or not all(p.isdigit() for p in partes):
-        raise ValueError(f"Tiempo inválido: {texto!r}")
-    numeros = [int(p) for p in partes]
-    if len(numeros) == 1:            # '45'      -> 45 minutos
-        horas, minutos, segundos = 0, numeros[0], 0
-    elif len(numeros) == 2:          # '45:30'   -> 45 min 30 s
-        horas, (minutos, segundos) = 0, numeros
-    else:                            # '1:05:00' -> 1 h 5 min
-        horas, minutos, segundos = numeros
-        if minutos >= 60:
-            raise ValueError(f"Tiempo inválido: {texto!r}")
-    if segundos >= 60:
-        raise ValueError(f"Tiempo inválido: {texto!r}")
-    total = horas * 60 + minutos + segundos / 60
-    if total <= 0:
-        raise ValueError("El tiempo tiene que ser mayor a cero")
-    return total
-
-
-def formatear_minutos(minutos: float) -> str:
-    """45.5 -> '45:30'; 125.0 -> '2:05:00'."""
-    total_seg = round(minutos * 60)
-    h, resto = divmod(total_seg, 3600)
-    m, s = divmod(resto, 60)
-    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
-
-
-def calcular_ritmo(distancia_km: float, minutos: float) -> dict:
-    """Ritmo (min/km), velocidad (km/h) y predicción de Riegel: T2 = T1 * (D2/D1)^1.06."""
-    if not (math.isfinite(distancia_km) and math.isfinite(minutos)):
-        raise ValueError("Valores no finitos")
-    if not (0 < distancia_km <= 1000 and 0 < minutos <= 24 * 60):
-        raise ValueError("Distancia (hasta 1000 km) y tiempo (hasta 24 h) fuera de rango")
-    predicciones = {
-        nombre: formatear_minutos(minutos * (km / distancia_km) ** 1.06)
-        for nombre, km in DISTANCIAS_CLASICAS.items()
-    }
-    return {
-        "ritmo_min_km": formatear_minutos(minutos / distancia_km),
-        "velocidad_kmh": round(distancia_km / (minutos / 60), 2),
-        "predicciones": predicciones,
-    }
-
 
 # ---------------------------------------------------------------------------
 # Etapas 2 a 4 · Handlers (cada uno es una corrutina: async def + await)
@@ -189,7 +151,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     historial = await db.obtener_historial(user_id, MAX_MENSAJES_HISTORIAL)
     # Paso 2: consultar al modelo con el historial más el mensaje nuevo.
     try:
-        respuesta = await consultar_gemini(historial, texto)
+        respuesta = await consultar_gemini(historial, texto, user_id)
     except ErrorGemini as error:
         # Si la consulta falló no se guarda nada: el historial nunca queda con una pregunta sin respuesta.
         await mensaje.reply_text(describir_error(error))
@@ -199,6 +161,154 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Si la respuesta supera el límite de Telegram, se envía en partes.
     for inicio in range(0, len(respuesta), LIMITE_TELEGRAM):
         await mensaje.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
+
+
+# ---------------------------------------------------------------------------
+# TIF · Entrenamientos: extracción estructurada, fotos y confirmación
+# ---------------------------------------------------------------------------
+def teclado_confirmacion() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton("✅ Guardar", callback_data="entreno:si"),
+                                  InlineKeyboardButton("❌ Descartar", callback_data="entreno:no")]])
+
+
+async def proponer_entrenamiento(update: Update, context: ContextTypes.DEFAULT_TYPE, **fuente) -> None:
+    """Extrae un entrenamiento (de texto o imagen) y pide confirmación antes de guardarlo."""
+    mensaje = update.effective_message
+    await mensaje.chat.send_action(ChatAction.TYPING)
+    try:
+        entreno = await extraer_entrenamiento(**fuente)
+    except ErrorGemini as error:
+        await mensaje.reply_text(describir_error(error))
+        return
+    if entreno is None:
+        await mensaje.reply_text(
+            "No pude sacar distancia y tiempo de eso 🤔. Probá con algo como: "
+            "/registrar hoy corrí 8 km en 44 minutos"
+        )
+        return
+    context.user_data["pendiente"] = entreno.model_dump()
+    await mensaje.reply_text(
+        f"Entendí esto 👇\n📏 {entreno.km:g} km en {formatear_minutos(entreno.minutos)} "
+        f"({formatear_minutos(entreno.minutos / entreno.km)} min/km)\n🏷️ {entreno.tipo}"
+        + (f"\n📝 {entreno.notas}" if entreno.notas else "") + "\n\n¿Lo guardo?",
+        reply_markup=teclado_confirmacion(),
+    )
+
+
+async def registrar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/registrar <texto libre>."""
+    texto = " ".join(context.args).strip()
+    if not texto:
+        await update.message.reply_text("Contame qué corriste 🏃‍♀️. Ej: /registrar hoy corrí 8 km en 44 minutos")
+        return
+    await proponer_entrenamiento(update, context, texto=texto)
+
+
+async def foto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Foto de un reloj/app: Gemini (multimodal) lee los datos y se pide confirmación."""
+    mensaje = update.effective_message
+    archivo = await mensaje.photo[-1].get_file()  # la de mayor resolución
+    datos = bytes(await archivo.download_as_bytearray())
+    await proponer_entrenamiento(update, context, texto=mensaje.caption, imagen=(datos, "image/jpeg"))
+
+
+async def confirmar_entrenamiento(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Botones ✅/❌ del entrenamiento propuesto."""
+    consulta = update.callback_query
+    await consulta.answer()
+    pendiente = context.user_data.pop("pendiente", None)
+    if consulta.data == "entreno:no" or not pendiente:
+        await consulta.edit_message_text("Descartado 👍" if pendiente else "Ese registro ya no está disponible.")
+        return
+    await db.guardar_entrenamiento(update.effective_user.id, pendiente["km"], pendiente["minutos"],
+                                   pendiente["tipo"], pendiente["notas"])
+    await consulta.edit_message_text("¡Guardado! 💪 Ya lo ves en /resumen.")
+
+
+async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/resumen: últimos 7 días, calculado directamente desde SQLite."""
+    r = await db.resumen_entrenamientos(update.effective_user.id, 7)
+    if not r["salidas"]:
+        await update.message.reply_text("Todavía no tenés entrenamientos esta semana. Registrá uno con /registrar 🏃")
+        return
+    lineas = [f"📅 Últimos 7 días: {r['salidas']} salidas · {r['km_totales']:g} km · "
+              f"{formatear_minutos(r['minutos_totales'])} · ritmo medio {formatear_minutos(r['ritmo_promedio_min_km'])} min/km", ""]
+    lineas += [f"• {d['fecha']}: {d['km']:g} km en {formatear_minutos(d['minutos'])} ({d['tipo']})" for d in r["detalle"]]
+    await update.message.reply_text("\n".join(lineas))
+
+
+async def borrar_entrenos(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    n = await db.borrar_entrenamientos(update.effective_user.id)
+    await update.message.reply_text(f"Borré {n} entrenamientos 🗑️.")
+
+
+# ---------------------------------------------------------------------------
+# TIF · /plan: flujo guiado con ConversationHandler (distancia -> semanas -> días)
+# ---------------------------------------------------------------------------
+PLAN_DISTANCIA, PLAN_SEMANAS, PLAN_DIAS = range(3)
+
+
+async def plan_inicio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.pop("plan", None)
+    botones = [[InlineKeyboardButton(d, callback_data=f"plan:{d}") for d in ("5K", "10K", "21K", "42K")]]
+    await update.message.reply_text("¡Armemos tu plan! 🗓️ ¿Para qué distancia te preparás? (/cancelar para salir)",
+                                    reply_markup=InlineKeyboardMarkup(botones))
+    return PLAN_DISTANCIA
+
+
+async def plan_distancia(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    consulta = update.callback_query
+    await consulta.answer()
+    context.user_data["plan"] = {"distancia": consulta.data.split(":", 1)[1]}
+    await consulta.edit_message_text(f"Genial, {context.user_data['plan']['distancia']} 💪")
+    await consulta.message.reply_text("¿En cuántas semanas es tu objetivo? (entre 2 y 24)")
+    return PLAN_SEMANAS
+
+
+async def _numero(update: Update, minimo: int, maximo: int) -> int | None:
+    texto = (update.message.text or "").strip()
+    if texto.isdigit() and minimo <= int(texto) <= maximo:
+        return int(texto)
+    await update.message.reply_text(f"Necesito un número entre {minimo} y {maximo} 🙂")
+    return None
+
+
+async def plan_semanas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    n = await _numero(update, 2, 24)
+    if n is None:
+        return PLAN_SEMANAS
+    context.user_data["plan"]["semanas"] = n
+    await update.message.reply_text("¿Cuántos días por semana podés entrenar? (entre 2 y 6)")
+    return PLAN_DIAS
+
+
+async def plan_dias(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    n = await _numero(update, 2, 6)
+    if n is None:
+        return PLAN_DIAS
+    datos = context.user_data.pop("plan")
+    datos["dias"] = n
+    user_id = update.effective_user.id
+    await update.message.chat.send_action(ChatAction.TYPING)
+    pedido = (f"Armame un plan de entrenamiento para {datos['distancia']} en {datos['semanas']} semanas, "
+              f"entrenando {datos['dias']} días por semana. Resumilo por semana, con progresión gradual y "
+              "descanso. Tené en cuenta lo que ya sepas de mí. Cerrá recordando que es orientativo.")
+    historial = await db.obtener_historial(user_id, MAX_MENSAJES_HISTORIAL)
+    try:
+        respuesta = await consultar_gemini(historial, pedido, user_id)
+    except ErrorGemini as error:
+        await update.message.reply_text(describir_error(error))
+        return ConversationHandler.END
+    await db.guardar_intercambio(user_id, pedido, respuesta)
+    for inicio in range(0, len(respuesta), LIMITE_TELEGRAM):
+        await update.message.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
+    return ConversationHandler.END
+
+
+async def plan_cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.pop("plan", None)
+    await update.message.reply_text("Plan cancelado. Cuando quieras, /plan de nuevo 🙂")
+    return ConversationHandler.END
 
 
 async def olvidar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -219,7 +329,7 @@ async def comando_desconocido(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def no_texto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Fotos, audios, stickers, etc.: por ahora solo se entiende texto."""
     await update.effective_message.reply_text(
-        "Por ahora solo entiendo texto 🙂. Contame con palabras o probá /ritmo 10 52:30."
+        "Solo entiendo texto y fotos de entrenamientos 🙂. Contame con palabras o probá /ritmo 10 52:30."
     )
 
 
@@ -261,12 +371,26 @@ def main() -> None:
     app.add_handler(CommandHandler("help", ayuda, filters=filters.UpdateType.MESSAGE))
     app.add_handler(CommandHandler("ritmo", ritmo, filters=filters.UpdateType.MESSAGE))
     app.add_handler(CommandHandler("olvidar", olvidar, filters=filters.UpdateType.MESSAGE))
+    app.add_handler(CommandHandler("registrar", registrar, filters=filters.UpdateType.MESSAGE))
+    app.add_handler(CommandHandler("resumen", resumen, filters=filters.UpdateType.MESSAGE))
+    app.add_handler(CommandHandler("borrar_entrenos", borrar_entrenos, filters=filters.UpdateType.MESSAGE))
+    app.add_handler(ConversationHandler(
+        entry_points=[CommandHandler("plan", plan_inicio, filters=filters.UpdateType.MESSAGE)],
+        states={
+            PLAN_DISTANCIA: [CallbackQueryHandler(plan_distancia, pattern=r"^plan:")],
+            PLAN_SEMANAS: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_semanas)],
+            PLAN_DIAS: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_dias)],
+        },
+        fallbacks=[CommandHandler("cancelar", plan_cancelar)],
+    ))
+    app.add_handler(CallbackQueryHandler(confirmar_entrenamiento, pattern=r"^entreno:"))
+    app.add_handler(MessageHandler(filters.PHOTO & filters.UpdateType.MESSAGE, foto))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE, responder))
     app.add_handler(MessageHandler(filters.COMMAND & filters.UpdateType.MESSAGE, comando_desconocido))
     app.add_handler(MessageHandler(~filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE, no_texto))  # va último
     app.add_error_handler(manejar_error)
 
-    logger.info("Zancada v3 en línea con el modelo %s.", llm.GEMINI_MODEL)
+    logger.info("Zancada en línea con el modelo %s.", llm.GEMINI_MODEL)
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
