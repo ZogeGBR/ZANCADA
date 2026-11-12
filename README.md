@@ -2,6 +2,8 @@
 
 Bot de Telegram que conversa con Gemini con la personalidad de un coach de running, recuerda la conversación aunque se reinicie, consulta el clima real, registra entrenamientos y arma planes.
 
+📄 **Informe del TIF:** [`docs/INFORME_TIF.md`](docs/INFORME_TIF.md) · **Pendientes:** [`docs/PENDIENTES.md`](docs/PENDIENTES.md)
+
 📄 **Informe del Hito 2:** [`docs/INFORME_HITO2.md`](docs/INFORME_HITO2.md) (prompt de sistema, conversación de prueba con capturas y ajuste del prompt).
 
 ## Qué hace
