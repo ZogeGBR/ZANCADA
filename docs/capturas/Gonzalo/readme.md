@@ -1,1 +1,0 @@
-Capturas Gonzalo Laspada
