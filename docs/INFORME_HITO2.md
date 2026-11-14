@@ -193,3 +193,57 @@ En la primera prueba, al contarle que corro 30 km por semana y que me preparo pa
 **08 · `prompts.py` antes del ajuste**
 
 ![Captura 08 de Ignacio](capturas/ignacio/08_ajuste_prompt_antes.png)
+
+## 8. Conversación de prueba de Gonzalo Laspada
+
+**Integrante:** Gonzalo Laspada
+**Bot de prueba:** Zancada Gonzalo
+
+Las capturas se hicieron con el código de este repositorio, corriendo el bot en la computadora de Gonzalo.
+
+### Conversación de prueba
+
+| # | Qué se escribió | Qué demuestra | Captura |
+|---|---|---|---|
+| 1 | "Corro de noche después del trabajo y mi meta son los 10K en 55 minutos" (después de `/olvidar`) | Entiende y responde en tono con su personalidad: calcula el ritmo de 5:30 min/km y pregunta cómo viene entrenando | [01](capturas/Gonzalo/01_dato_del_usuario_y_conversacion.png) |
+| 2 | "Corro 3 veces por semana, hace un mes que empecé" y "¿Qué conviene comer antes de salir?" (enviado en un solo mensaje) | La conversación fluye: lo felicita por la constancia y le recomienda algo liviano antes de salir de noche | [02](capturas/Gonzalo/02_conversacion_y_pregunta_de_memoria.png) |
+| 3 | "¿Qué ritmo tengo que llevar para cumplir mi meta?" | Memoria: responde con los 10K en 55 minutos (5:30 min/km) sin que se repita el dato | [03](capturas/Gonzalo/03_memoria.png) |
+| 4 | Se reinició el bot (Ctrl+C a las 19:22:27 y `python bot.py` a las 19:22:33) y se preguntó "¿Te acordás cuál es mi meta?" | Persistencia: recuerda los 10K en 55 minutos y las tres salidas por semana desde hace un mes | [04](capturas/Gonzalo/04_reinicio_del_bot.png), [05](capturas/Gonzalo/05_persistencia_y_alcance.png) |
+| 5 | "¿Me ayudás a resolver una ecuación de segundo grado?" | Alcance: dice con humor que eso no es lo suyo y vuelve a ofrecer ayuda con el running | [06](capturas/Gonzalo/06_alcance.png) |
+| 6 | "¿Cuánto sale la próxima 10K de mi ciudad y a qué hora largan?" | Honestidad: aclara que no tiene acceso a internet ni sabe de qué ciudad es, y sugiere la página oficial o las redes de la organización | [07](capturas/Gonzalo/07_honestidad.png) |
+
+### Capturas
+
+**01 · Dato del usuario y comienzo de la conversación** (después de `/olvidar`)
+
+![Captura 01 de Gonzalo](capturas/Gonzalo/01_dato_del_usuario_y_conversacion.png)
+
+**02 · Conversación**
+
+![Captura 02 de Gonzalo](capturas/Gonzalo/02_conversacion_y_pregunta_de_memoria.png)
+
+**03 · Memoria**
+
+![Captura 03 de Gonzalo](capturas/Gonzalo/03_memoria.png)
+
+**04 · Reinicio del bot en la terminal**
+
+![Captura 04 de Gonzalo](capturas/Gonzalo/04_reinicio_del_bot.png)
+
+**05 · Persistencia después del reinicio**
+
+![Captura 05 de Gonzalo](capturas/Gonzalo/05_persistencia_y_alcance.png)
+
+**06 · Alcance**
+
+![Captura 06 de Gonzalo](capturas/Gonzalo/06_alcance.png)
+
+**07 · Honestidad**
+
+![Captura 07 de Gonzalo](capturas/Gonzalo/07_honestidad.png)
+
+### Ajuste del prompt de sistema
+
+**08 · `prompts.py` con el bloque ESTILO antes del ajuste de la sección 4** (línea 37 resaltada: *"Sos cercano y directo, como un entrenador que conoce bien su oficio: alentás con medida, sin exagerar, y priorizás dar información útil."*)
+
+![Captura 08 de Gonzalo](capturas/Gonzalo/cambio_prompt.py.png)
