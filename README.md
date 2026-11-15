@@ -2,7 +2,7 @@
 
 Bot de Telegram que conversa con Gemini con la personalidad de un coach de running, recuerda la conversación aunque se reinicie, consulta el clima real, registra entrenamientos y arma planes.
 
-📄 **Informe del TIF:** [`docs/INFORME_TIF.md`](docs/INFORME_TIF.md) · **Pendientes:** [`docs/PENDIENTES.md`](docs/PENDIENTES.md)
+📄 **Informe final (TIF/EGI):** [`docs/InformeEGIfinal.md`](docs/InformeEGIfinal.md) ([PDF](docs/InformeEGIfinal.pdf)) · **Borrador previo:** [`docs/INFORME_TIF.md`](docs/INFORME_TIF.md) · **Pendientes:** [`docs/PENDIENTES.md`](docs/PENDIENTES.md)
 
 📄 **Informe del Hito 2:** [`docs/INFORME_HITO2.md`](docs/INFORME_HITO2.md) (prompt de sistema, conversación de prueba con capturas y ajuste del prompt).
 
@@ -42,7 +42,7 @@ Gemini no ejecuta nada: responde "quiero llamar a `clima_para_correr(ciudad=…)
 - `prompts.py`: prompt de sistema (identidad, tarea y alcance, estilo, formato, honestidad).
 - `llm.py`: consulta a Gemini.
 - `db.py` (aiosqlite): historial y entrenamientos en SQLite.
-- `docs/`: informe del Hito 2 y capturas de la conversación de prueba.
+- `docs/`: `InformeEGIfinal.md/.pdf` (informe final), `INFORME_HITO2.md`, `PENDIENTES.md` y `capturas/` (Hito 2 en la raíz y en las carpetas del equipo; `capturas/tif/` con las pruebas reales del TIF).
 - `.env.example`: variables necesarias. **El `.env` y el `.db` no se suben al repositorio.**
 
 ## Puesta en marcha
