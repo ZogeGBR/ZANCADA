@@ -247,3 +247,90 @@ Las capturas se hicieron con el código de este repositorio, corriendo el bot en
 **08 · `prompts.py` con el bloque ESTILO antes del ajuste de la sección 4** (línea 37 resaltada: *"Sos cercano y directo, como un entrenador que conoce bien su oficio: alentás con medida, sin exagerar, y priorizás dar información útil."*)
 
 ![Captura 08 de Gonzalo](capturas/Gonzalo/cambio_prompt.py.png)
+
+## 9. Conversación de prueba de Matías López
+
+**Integrante:** Matías López
+**Bot de prueba:** [@Zancada_Lopez_bot](http://t.me/Zancada_Lopez_bot)
+
+> **Aclaración.** Las capturas se realizaron ejecutando el código de este repositorio de forma local en la computadora de Matías con su propio bot de prueba en Telegram (`@Zancada_Lopez_bot`). Para la sección de ajuste del prompt se probó una variante propia del bloque `# ESTILO` en `prompts.py` para evaluar el cambio de personalidad entre el tono de "amiga de grupo de running" y el de un "entrenador honesto, serio y motivacional".
+
+### Conversación de prueba
+
+| # | Qué se escribió | Qué demuestra | Captura |
+|---|---|---|---|
+| 1 | "Corro en la noche después del trabajo y mi meta son los 10k en 55 minutos" (después de `/start`) | Entiende y responde en tono con su personalidad: celebra la meta y consulta cómo viene entrenando | [01](capturas/Matías/01.jpeg) |
+| 2 | "Corro 3 veces por semana, hace un mes que empecé" "¿Qué conviene comer antes de salir?" | La conversación fluye: felicita por la constancia de las tres salidas y recomienda opciones livianas e hidratación para la noche | [02](capturas/Matías/02.jpeg) |
+| 3 | "¿Qué ritmo tengo que llevar para cumplir mi meta?" | Memoria: responde con los 10K en 55 minutos (5:30 min/km) y las tres salidas semanales sin que se repita el dato | [03](capturas/Matías/03.jpeg), [04](capturas/Matías/04.jpeg) |
+| 4 | Se reinició el bot (Ctrl+C y `python bot.py`) y se preguntó "¿Te acordás cuál es mí meta?" | Persistencia: recuerda la meta de 10K en 55 minutos (ritmo de 5:30 min/km), las tres salidas semanales y que corre de noche después de la oficina | [04](capturas/Matías/04.jpeg), [05](capturas/Matías/05.jpeg) |
+| 5 | "¿Me ayudas a resolver una ecuación de segundo grado?" | Alcance: responde con amabilidad que su especialidad son los tiempos y ritmos de carrera y redirige la charla al entrenamiento | [05](capturas/Matías/05.jpeg), [06](capturas/Matías/06.jpeg) |
+| 6 | "¿Cuánto sale la próxima 10k de mí ciudad (Mendoza, Argentina) y a qué hora largan?" | Honestidad: aclara que no tiene precios ni horarios exactos de las carreras y sugiere verificarlo en la página oficial o redes sociales | [06](capturas/Matías/06.jpeg), [07](capturas/Matías/07.jpeg) |
+
+### Capturas
+
+**01 · Inicio, dato del usuario y comienzo de la conversación**
+
+![Captura 01 de Matías](capturas/Matías/01.jpeg)
+
+**02 · Conversación**
+
+![Captura 02 de Matías](capturas/Matías/02.jpeg)
+
+**03 · Memoria**
+
+![Captura 03 de Matías](capturas/Matías/03.jpeg)
+
+**04 · Respuesta antes del ajuste y persistencia después del reinicio**
+
+![Captura 04 de Matías](capturas/Matías/04.jpeg)
+
+**05 · Persistencia y alcance**
+
+![Captura 05 de Matías](capturas/Matías/05.jpeg)
+
+**06 · Alcance y honestidad**
+
+![Captura 06 de Matías](capturas/Matías/06.jpeg)
+
+**07 · Honestidad y respuesta después del ajuste del prompt**
+
+![Captura 07 de Matías](capturas/Matías/07.jpeg)
+
+### Ajuste del prompt de sistema
+
+En la primera prueba, al preguntar *"¿Qué ritmo tengo que llevar para cumplir mi meta?"*, el bot utilizaba el siguiente bloque de estilo:
+
+```python
+# ESTILO
+Sos muy cálida y cercana, como una amiga que corre con el grupo: celebrás los \
+avances del usuario, lo alentás con entusiasmo y le hablás con cariño. \
+Usá frases cortas y directas. Si hace falta, pasá a un tono técnico \
+(ritmo en min/km, esfuerzo percibido de 1 a 10), pero explicalo simple. \
+Cerrá con una pregunta o una propuesta breve para que la conversación siga.
+```
+
+Con esa configuración, la respuesta obtenida (captura [04](capturas/Matías/04.jpeg)) fue:
+
+> *"Para clavar esos 10K en 55 minutos, vas a tener que mantener un ritmo constante de 5 minutos y 30 segundos cada kilómetro. ⏱️💪*
+>
+> *Es una velocidad hermosa y con tus tres salidas semanales la vamos a ir cazando de a poco. ¿Venís sumando kilómetros tranquilos o ya probaste hacer algún tramo más rápido? 🏃‍♀️✨"*
+
+Luego, se actualizó el bloque `# ESTILO` en `prompts.py` para darle el perfil de un entrenador más serio, honesto y enfocado en el trabajo estructurado, sin perder el costado motivacional:
+
+```python
+# ESTILO
+Sos un entrenador que habla con honestidad y seriedad pero, a su vez, con un tono motivacional: celebrás los \
+avances del usuario, lo alentás con entusiasmo y le hablás con orgullo cuando sentís que hacen las cosas bien. \
+Usá frases cortas y directas. Si hace falta, pasá a un tono técnico \
+(ritmo en min/km, esfuerzo percibido de 1 a 10), pero explicalo simple. \
+Cerrá con una pregunta o una propuesta breve para que la conversación siga.
+```
+
+Al repetir la misma pregunta tras el cambio, la respuesta del bot (captura [07](capturas/Matías/07.jpeg)) fue:
+
+> *"Para cumplir tu meta de hacer los 10K en 55 minutos, vas a tener que mantener un ritmo promedio de 5 minutos y 30 segundos cada kilómetro. ⏱️🚀*
+>
+> *Es una marca recontra accesible si le metemos constancia y combinamos las salidas. ¿Te armo un plan para arrancar la semana con esos objetivos? 💪👟✨"*
+
+**Análisis del cambio de tono:** Si bien la diferencia entre ambas respuestas es sutil porque se mantiene el español rioplatense, la brevedad y el dato técnico exacto (5:30 min/km), la correspondencia con el cambio de estilo es clara y perceptible. En la primera versión predomina una complicidad afectiva y coloquial propia de una amiga de grupo (*"clavar esos 10K"*, *"es una velocidad hermosa"*, *"la vamos a ir cazando de a poco"*), cerrando con una pregunta exploratoria sobre sus salidas. En cambio, tras definir el rol de un entrenador serio y honesto, el vocabulario pasa a ser más sobrio, preciso y enfocado en el método (*"Para cumplir tu meta de hacer los 10K"*, *"ritmo promedio"*, *"es una marca recontra accesible si le metemos constancia y combinamos las salidas"*), y el cierre toma la iniciativa propia de un coach proponiendo directamente estructurar el trabajo (*"¿Te armo un plan para arrancar la semana con esos objetivos?"*).
+
