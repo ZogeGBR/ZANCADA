@@ -334,3 +334,85 @@ Al repetir la misma pregunta tras el cambio, la respuesta del bot (captura [07](
 
 **Análisis del cambio de tono:** Si bien la diferencia entre ambas respuestas es sutil porque se mantiene el español rioplatense, la brevedad y el dato técnico exacto (5:30 min/km), la correspondencia con el cambio de estilo es clara y perceptible. En la primera versión predomina una complicidad afectiva y coloquial propia de una amiga de grupo (*"clavar esos 10K"*, *"es una velocidad hermosa"*, *"la vamos a ir cazando de a poco"*), cerrando con una pregunta exploratoria sobre sus salidas. En cambio, tras definir el rol de un entrenador serio y honesto, el vocabulario pasa a ser más sobrio, preciso y enfocado en el método (*"Para cumplir tu meta de hacer los 10K"*, *"ritmo promedio"*, *"es una marca recontra accesible si le metemos constancia y combinamos las salidas"*), y el cierre toma la iniciativa propia de un coach proponiendo directamente estructurar el trabajo (*"¿Te armo un plan para arrancar la semana con esos objetivos?"*).
 
+
+## 10. Conversación de prueba de Luciano Malanca
+
+**Integrante:** Luciano Malanca
+**Bot de prueba:** [@Zancada_LucianoM_bot](https://t.me/Zancada_LucianoM_bot)
+
+> **Aclaración.** Las capturas se hicieron ejecutando el código del Hito 2 de este repositorio en la computadora de Luciano, con su propio bot de prueba. El bot se arrancó con un lanzador local (`run_ipv4.py`, que no está en el repositorio): fuerza el uso de IPv4 al resolver nombres de red y después ejecuta `bot.main()`, por problemas de conexión con Telegram. El código del bot no se modificó. Para el ajuste se probó una variante propia del bloque `# FORMATO` de `prompts.py`.
+
+### Conversación de prueba
+
+| # | Qué se escribió | Qué demuestra | Captura |
+|---|---|---|---|
+| 1 | "Corro de noche después del trabajo y mi meta son los 10K en 55 minutos" (después de `/olvidar`) | Entiende y responde en tono con su personalidad: celebra que corra de noche, calcula el ritmo de 5:30 min/km y pregunta por el lugar y la seguridad de sus salidas | [01](capturas/luciano/luciano_01_personalidad.png) |
+| 2 | "Corro 3 veces por semana, hace un mes que empecé" y, en otro mensaje, "¿Qué conviene comer antes de salir?" | La conversación fluye: lo felicita por empezar, le recomienda algo liviano antes de salir (tostada con mermelada, banana, yogur con cereales) y tomar agua durante la tarde | [02](capturas/luciano/luciano_02_conversacion.png) |
+| 3 | "¿Qué ritmo tengo que llevar para cumplir mi meta?" | Memoria: responde con los 10K en 55 minutos (5:30 min/km) sin que se repita el dato | [03](capturas/luciano/luciano_03_memoria.png) |
+| 4 | Se reinició el bot (Ctrl+C a las 17:58:56 y `python run_ipv4.py` a las 17:59:04) y se preguntó "¿Te acordás cuál es mi meta?" | Persistencia: recuerda los 10K en 55 minutos a 5:30 min/km, las tres salidas por semana y que corre de noche después del trabajo | [04 terminal](capturas/luciano/luciano_04_persistencia_terminal.png), [04 chat](capturas/luciano/luciano_04_persistencia_chat.png) |
+| 5 | "¿Me ayudás a resolver una ecuación de segundo grado?" | Alcance: dice con humor que de matemática entiende menos que de física cuántica y vuelve al running | [05](capturas/luciano/luciano_05_alcance.png) |
+| 6 | "¿Cuánto sale la próxima 10K de Mendoza y a qué hora largan?" | Honestidad: aclara que no sabe los precios ni los horarios exactos y sugiere mirar la página oficial de la carrera o sus redes | [06](capturas/luciano/luciano_06_honestidad.png) |
+
+La captura 2 se hizo después del ajuste de la sección siguiente, por eso sus respuestas ya no tienen asteriscos; las capturas 1, 3 y 4 se hicieron con el prompt anterior al ajuste.
+
+### Capturas
+
+**01 · Inicio y personalidad** (después de `/olvidar`)
+
+![Captura 01 de Luciano](capturas/luciano/luciano_01_personalidad.png)
+
+**02 · Conversación**
+
+![Captura 02 de Luciano](capturas/luciano/luciano_02_conversacion.png)
+
+**03 · Memoria** (respuesta antes del ajuste: aparecen `**5:30 el kilómetro**` y `` `/ritmo` `` con los símbolos de Markdown)
+
+![Captura 03 de Luciano](capturas/luciano/luciano_03_memoria.png)
+
+**04 · Reinicio del bot en la terminal** (se tapó el id de usuario de Telegram)
+
+![Captura 04 de Luciano, terminal](capturas/luciano/luciano_04_persistencia_terminal.png)
+
+**04 · Persistencia después del reinicio**
+
+![Captura 04 de Luciano, chat](capturas/luciano/luciano_04_persistencia_chat.png)
+
+**05 · Alcance**
+
+![Captura 05 de Luciano](capturas/luciano/luciano_05_alcance.png)
+
+**06 · Honestidad**
+
+![Captura 06 de Luciano](capturas/luciano/luciano_06_honestidad.png)
+
+### Ajuste del prompt de sistema
+
+En la primera prueba, al preguntar *"¿Qué ritmo tengo que llevar para cumplir mi meta?"* (captura 03), Zancada dio el ritmo correcto pero escribió el dato con asteriscos de Markdown y el comando entre comillas invertidas:
+
+> *"¡Para meter los 10K en 55 minutos, el número mágico que tenés que buscar es **5:30 el kilómetro** (o sea, 5 minutos y medio por cada mil metros)! ⏱️💨 [...] Acordate que con el comando `/ritmo` podemos calcular otros tiempos si los necesitás. ¿Cómo venís sintiendo tus piernas a ese ritmo cuando salís a la noche? 🤔👟💪"*
+
+Gemini responde en Markdown, pero el bot envía el texto sin formato, así que Telegram muestra esos símbolos tal cual y el chat se ve desprolijo (pasa también en las capturas 01 y 04). El bloque `# FORMATO` del prompt solo hablaba de los emojis y no decía nada sobre el formato del texto. Se agregaron estas líneas al final de ese bloque en `prompts.py`:
+
+```python
+# FORMATO
+Usá emojis en casi todas las respuestas, de 2 a 4 por mensaje, relacionados \
+con lo que estás diciendo (🏃‍♀️ 💪 🍌 🌙 ⏱️ 😊), para que el chat se sienta \
+alegre y cercano.
+Escribí en texto plano: no uses Markdown (nada de asteriscos para negrita \
+ni comillas invertidas), porque Telegram los muestra tal cual y se ven como \
+símbolos raros.
+```
+
+Después se reinició el bot, se borró la conversación con `/olvidar`, se volvió a contar la meta y se repitió la misma pregunta. La respuesta (captura de abajo) ya no tiene asteriscos ni símbolos raros y mantiene el mismo contenido, 5 minutos y 30 segundos por kilómetro:
+
+> *"Para clavar los 10K en 55 minutos, tenés que mantener un ritmo promedio de 5 minutos y 30 segundos cada kilómetro. ¡Esa es la cuenta exacta! ⏱️🏃 [...] ¿Venís usando algún reloj o aplicación en el celu para medir los kilómetros cuando salís de noche? 📱💪"*
+
+En esta prueba la respuesta no mencionó el comando `/ritmo`, así que el caso de las comillas invertidas no se pudo comprobar; lo que sí quedó confirmado es que desaparecieron los asteriscos.
+
+**07 · Respuesta después del ajuste**
+
+![Captura 07 de Luciano](capturas/luciano/luciano_07_ajuste_despues.png)
+
+**08 · `prompts.py` con el bloque `# FORMATO` ajustado**
+
+![Captura 08 de Luciano](capturas/luciano/luciano_ajuste_prompt_formato.png)
