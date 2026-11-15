@@ -1,16 +1,10 @@
 # InformeEGIfinal · Zancada: coach de running con IA
 
 **Trabajo Integrador Final (TIF)** · Sistemas Inteligentes Aplicados 2026 · ITU UNCUYO · Docente: Ing. Miguel Pérez Díaz
-**Fecha:** 15/11/2026 · **Equipo:** (completar nombre del equipo)
+**Fecha:** 15/11/2026
 **Código:** [github.com/ZogeGBR/zancada](https://github.com/ZogeGBR/zancada) (rama `main`)
 
-| Integrante | Rol | Aporte |
-| --- | --- | --- |
-| Zoe Garcia Badiola | (completar) | Repositorio, Hitos 1 y 2, prompt de sistema, TIF final, pruebas con el bot real |
-| Gonzalo Laspada | (completar) | Pruebas y capturas del Hito 2 |
-| Ignacio Morichetti Ramal | (completar) | Informe del Hito 2 y capturas |
-| (completar) | (completar) | (completar) |
-| (completar) | (completar) | (completar) |
+**Integrantes:** Zoe Garcia Badiola, Ignacio Morichetti Ramal, Matias Lopez, Gonzalo Laspada y Luciano Malanca. El equipo trabajó sin roles fijos: todos participaron en el desarrollo, las pruebas y la preparación de la defensa.
 
 ---
 

@@ -11,7 +11,7 @@ Lista de lo que falta antes de la defensa. Marcá cada ítem cuando esté hecho.
   - [x] `/resumen`
   - [x] `/plan` completo (10K, 8 semanas, 4 días)
   - [x] Si Gemini rechaza la llamada con herramientas o con imagen, corregir `llm.py` (el formato salió del SDK, no de una prueba real)
-- [ ] **Completar el equipo**: nombre, integrantes y roles en `docs/INFORME_TIF.md`, en el informe online y en la portada y el cierre de las diapositivas
+- [x] **Completar el equipo**: integrantes cargados en el informe final y las diapositivas (sin roles fijos)
 - [ ] **Confirmar con el profesor** los requisitos del TIF (no hay rúbrica oficial; se armaron con las clases 1 y 2 y los hitos)
 - [x] **Sacar capturas** de las pruebas reales y agregarlas a `docs/capturas/` (clima, registro por texto, foto, resumen, plan)
 - [ ] **Ensayar la demo** de 3 minutos y tener capturas de respaldo por si falla internet
