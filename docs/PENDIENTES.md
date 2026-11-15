@@ -19,7 +19,7 @@ Lista de lo que falta antes de la defensa. Marcá cada ítem cuando esté hecho.
 
 ## Recomendado
 
-- [ ] Decidir si se restaura en `prompts.py` la regla de formato (texto plano, 2 a 5 líneas) que se perdió al ajustar el estilo
+- [x] Regla de formato restaurada en `prompts.py` (texto plano, respuestas breves) y asteriscos limpiados en `bot.py`
 - [ ] Que cada integrante corra el bot en su máquina (ver la guía del equipo) para poder defender cualquier parte
 - [ ] Repartir quién explica cada diapositiva (hay notas de orador en cada una)
 - [ ] Revisar que `.env` y `zancada.db` no estén en el repositorio

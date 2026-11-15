@@ -19,6 +19,7 @@ Se ejecuta con:  python bot.py   (con el entorno virtual activado)
 
 import logging
 import os
+import re
 import warnings
 
 from dotenv import load_dotenv
@@ -122,6 +123,14 @@ async def ritmo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 LIMITE_TELEGRAM = 4096  # longitud máxima de un mensaje de Telegram, en caracteres
+
+
+def limpiar_markdown(texto: str) -> str:
+    """Telegram (sin parse_mode) muestra los asteriscos tal cual: se quitan por si el modelo los usa."""
+    texto = re.sub(r"\*\*(.+?)\*\*", r"\1", texto, flags=re.DOTALL)  # **negrita**
+    texto = re.sub(r"(?m)^(\s*)\* ", r"\1• ", texto)                  # '* ítem' -> '• ítem'
+    return texto
+
 # Mensajes anteriores que se envían al modelo en cada consulta (20 = 10 preguntas y respuestas).
 # Más memoria = más lento y más cuota consumida por consulta.
 MAX_MENSAJES_HISTORIAL = 20
@@ -159,6 +168,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Paso 3: guardar la pregunta y la respuesta para la próxima consulta.
     await db.guardar_intercambio(user_id, texto, respuesta)
     # Si la respuesta supera el límite de Telegram, se envía en partes.
+    respuesta = limpiar_markdown(respuesta)
     for inicio in range(0, len(respuesta), LIMITE_TELEGRAM):
         await mensaje.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
 
@@ -300,6 +310,7 @@ async def plan_dias(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text(describir_error(error))
         return ConversationHandler.END
     await db.guardar_intercambio(user_id, pedido, respuesta)
+    respuesta = limpiar_markdown(respuesta)
     for inicio in range(0, len(respuesta), LIMITE_TELEGRAM):
         await update.message.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
     return ConversationHandler.END
