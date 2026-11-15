@@ -98,6 +98,17 @@ Se ejecutó el bot con las claves reales de Telegram y Gemini y se repitieron la
 
 ![Captura: /start, consulta del clima y /registrar](capturas/tif/01_start_clima_y_registro.png)
 
+**Evidencia en la consola del bot** (modelo `gemini-3.5-flash-lite`). Al preguntar "¿Cómo está el clima para correr hoy en Mendoza?", el registro muestra que Gemini pidió la herramienta, el bot la ejecutó y devolvió el resultado real de Open-Meteo, y que luego Gemini redactó la respuesta (llamadas `POST .../v1/interactions` con `200 OK`):
+
+```
+Herramienta clima_para_correr({'ciudad': 'Mendoza'}) -> {'ciudad': 'Mendoza, Argentina',
+'fecha': '2026-11-15', 'mejores_horas': [{'hora': '05:00', 'temperatura_c': 19.1,
+'prob_lluvia_pct': 0, 'viento_kmh': 5.4}, {'hora': '06:00', 'temperatura_c': 18.4, ...},
+{'hora': '07:00', 'temperatura_c': 18.6, ...}], 'fuente': 'Open-Meteo.com (CC BY 4.0)'}
+```
+
+Esto confirma el ciclo completo de function calling con servicios reales: las horas de la respuesta del bot (05:00 a 07:00) coinciden con las del resultado de la herramienta.
+
 **Prueba 2 · Foto y resumen.** Se envió la imagen de ejemplo `capturas/tif/05_imagen_de_prueba_enviada.png`; el bot leyó 8,00 km en 44:00, el usuario confirmó y quedó guardado. `/resumen` lista las dos salidas registradas (una por texto y otra por foto, ambas de 8 km en 44:00), con 16 km totales y ritmo medio de 5:30 min/km.
 
 ![Captura: foto de entrenamiento y /resumen](capturas/tif/02_foto_y_resumen.png)
