@@ -59,8 +59,8 @@ Zancada cubre los seis requisitos obligatorios y dos módulos avanzados. Los req
 | 4. Function calling (>= 2 funciones, 1 API externa) | `clima_para_correr` (Open-Meteo), `calcular_ritmo`, `registrar_entrenamiento`, `resumen_entrenamientos` | `tools.py` |
 | 5. Análisis estructurado | Extracción de entrenamientos a JSON con esquema, validado con Pydantic | `schemas.py`, `llm.py` |
 | 6. Manejo de errores y `.env` | Errores 429/401/403/5xx traducidos, herramientas que nunca lanzan, tope de rondas, claves solo en `.env` | `llm.py`, `bot.py` |
-| Módulo: multimodalidad | Foto de un reloj o app: Gemini lee distancia y tiempo | `bot.py` (`foto`) |
-| Módulo: flujo guiado | `/plan` con `ConversationHandler`: distancia, semanas, días, plan | `bot.py` (`plan_*`) |
+| Módulo: multimodalidad | Foto de un reloj o app (Gemini lee distancia y tiempo) y notas de voz (Gemini las escucha y responde) | `bot.py` (`foto`, `voz`), `llm.py` (`adjuntos`) |
+| Módulo: flujo guiado | `/plan` con `ConversationHandler`: distancia, semanas, días, confirmación y plan | `bot.py` (`plan_*`) |
 
 No se implementaron RAG, webhooks ni evaluación formal de las respuestas del modelo.
 
@@ -72,9 +72,9 @@ No se implementaron RAG, webhooks ni evaluación formal de las respuestas del mo
 
 **Salida estructurada.** `/registrar` y las fotos piden a Gemini un JSON con el esquema `Entrenamiento` (`km`, `minutos`, `tipo`, `notas`, `entendido`). Pydantic valida la respuesta y el bot la rechaza si no hay distancia y tiempo razonables (0 < km <= 1000, 0 < min <= 1440). Antes de guardar, el usuario confirma con botones; un doble clic no duplica el registro.
 
-**Multimodalidad.** La foto de mayor resolución se descarga, se codifica en base64 y se envía junto con la consigna de extracción. Pasa por la misma validación y confirmación que el texto.
+**Multimodalidad.** La foto de mayor resolución se descarga, se codifica en base64 y se envía junto con la consigna de extracción. Pasa por la misma validación y confirmación que el texto. Si la foto no es un entrenamiento, Gemini la comenta como parte de la conversación. Las **notas de voz** se descargan (OGG/Opus), se envían como parte `audio` en base64 y Gemini responde empezando por una línea «Escuché: …»; se aceptan hasta 2 minutos. En el historial queda una etiqueta (`[Foto]`, `[Nota de voz]`) junto con la respuesta, no los bytes, de modo que un mensaje posterior continúa la conversación con ese contexto.
 
-**Flujo guiado.** `/plan` usa un `ConversationHandler` con tres estados. Cada paso valida la entrada (semanas entre 2 y 24, días entre 2 y 6), `/cancelar` sale del flujo y, al final, Gemini genera el plan usando el historial del usuario.
+**Flujo guiado.** `/plan` usa un `ConversationHandler` con cuatro estados. Cada paso valida la entrada (semanas entre 2 y 24, días entre 2 y 6) y `/cancelar` sale del flujo. Tras el último dato, el bot muestra un resumen con botones ✅ Armar plan y ❌ Cancelar; solo al confirmar se consulta a Gemini, que genera el plan usando el historial del usuario.
 
 **Seguridad de diseño.** El `user_id` lo inyecta el bot al ejecutar cada herramienta: nunca forma parte del esquema que ve el modelo, por lo que un usuario no puede pedirle datos de otra persona.
 
@@ -82,7 +82,7 @@ No se implementaron RAG, webhooks ni evaluación formal de las respuestas del mo
 
 ### 6.1 Pruebas automatizadas
 
-**42 pruebas de integración pasan** (`tests/test_integracion.py`), y las 27 del Hito 2 siguen pasando sobre la versión final. Ejecutan el código real de `python-telegram-bot`, el SDK real de `google-genai` y SQLite real; solo se simulan las respuestas HTTP de Gemini, Open-Meteo y Telegram. Cubren: el ciclo de function calling y su tope de rondas, las cuatro herramientas con sus errores (ciudad inexistente, servicio caído, argumentos inválidos, distancia absurda), la extracción y confirmación (texto válido, texto que no es un entrenamiento, valores negativos, JSON fuera de esquema, doble clic), la foto, el flujo `/plan` con entradas inválidas y `/cancelar`, y los errores 429, 403, 500 y respuesta vacía. Se ejecutan con `python tests/test_integracion.py` y no necesitan internet.
+**52 pruebas de integración pasan** (`tests/test_integracion.py`), y las 27 del Hito 2 siguen pasando sobre la versión final. Ejecutan el código real de `python-telegram-bot`, el SDK real de `google-genai` y SQLite real; solo se simulan las respuestas HTTP de Gemini, Open-Meteo y Telegram. Cubren: el ciclo de function calling y su tope de rondas, las cuatro herramientas con sus errores (ciudad inexistente, servicio caído, argumentos inválidos, distancia absurda), la extracción y confirmación (texto válido, texto que no es un entrenamiento, valores negativos, JSON fuera de esquema, doble clic), la foto (también una que no es un entrenamiento), la nota de voz (audio enviado, contexto guardado, continuidad y límite de duración), el flujo `/plan` con entradas inválidas, `/cancelar` y la confirmación o cancelación final, y los errores 429, 403, 500 y respuesta vacía. Se ejecutan con `python tests/test_integracion.py` y no necesitan internet.
 
 ### 6.2 Pruebas con el bot real (15/11/2026)
 
@@ -119,7 +119,7 @@ Después de la corrección (con viñetas y sin asteriscos):
 
 ![Captura: plan final](capturas/tif/04_plan_final.png)
 
-**Alcance de la evidencia.** Las pruebas reales cubren el clima, el registro por texto, la foto, `/resumen` y `/plan`. No se probaron en vivo los escenarios de falla (cuota agotada, clave inválida, servicio de clima caído): esos solo están cubiertos por las pruebas automatizadas simuladas.
+**Alcance de la evidencia.** Las pruebas reales del 15/11 cubren el clima, el registro por texto, la foto, `/resumen` y `/plan` (versión anterior a la confirmación final). La nota de voz y la confirmación de `/plan` están cubiertas por pruebas automatizadas simuladas y se muestran en vivo en el video del Hito 4. No se probaron en vivo los escenarios de falla (cuota agotada, clave inválida, servicio de clima caído): esos solo están cubiertos por las pruebas automatizadas simuladas.
 
 ## 7. Seguridad, privacidad y limitaciones
 
@@ -130,7 +130,7 @@ Después de la corrección (con viñetas y sin asteriscos):
 - El usuario puede borrar su conversación (`/olvidar`) y sus entrenamientos (`/borrar_entrenos`).
 - El prompt prohíbe diagnosticar, recetar y pedir datos personales o sensibles.
 - Open-Meteo es gratuita para uso no comercial y exige atribución (CC BY 4.0); se cita en el README y en la respuesta de la herramienta.
-- Al usar Gemini, el texto y las fotos que el usuario envía viajan a Google; conviene avisarlo a quienes prueben el bot.
+- Al usar Gemini, el texto, las fotos y las notas de voz que el usuario envía viajan a Google; conviene avisarlo a quienes prueben el bot.
 - Las capturas de este informe se recortaron para no mostrar otros chats ni datos ajenos al proyecto.
 
 **Limitaciones conocidas.**
@@ -157,4 +157,5 @@ Después de la corrección (con viñetas y sin asteriscos):
 | Informe del Hito 2 | `docs/INFORME_HITO2.md` |
 | Capturas del TIF | `docs/capturas/tif/` |
 | Presentación oral y guion | Presentación y guion compartidos por el equipo (fuera del repositorio) |
+| Estados de avance (Hitos 3 y 4) | `docs/ESTADO_HITO3.md` y `docs/ESTADO_HITO4.md` (con PDF) |
 | Lista de pendientes | `docs/PENDIENTES.md` |
