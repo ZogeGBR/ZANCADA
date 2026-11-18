@@ -8,6 +8,8 @@ Lista de lo que falta antes de la defensa. Marcá cada ítem cuando esté hecho.
   - [x] Preguntar "¿cómo está el clima para correr hoy en Mendoza?" (function calling + Open-Meteo)
   - [x] `/registrar hoy corrí 8 km en 44 minutos` y confirmar con el botón
   - [x] Mandar la foto de un reloj o app y confirmar
+  - [x] Mandar una nota de voz y seguir la conversación después (Hito 4: multimodalidad)
+  - [x] `/plan` termina con un resumen y botones Confirmar/Cancelar (Hito 4: flujo guiado)
   - [x] `/resumen`
   - [x] `/plan` completo (10K, 8 semanas, 4 días)
   - [x] Si Gemini rechaza la llamada con herramientas o con imagen, corregir `llm.py` (el formato salió del SDK, no de una prueba real)

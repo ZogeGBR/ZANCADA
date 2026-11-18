@@ -13,7 +13,8 @@ Bot de Telegram que conversa con Gemini con la personalidad de un coach de runni
 | `/start`, `/help` | Saludo y lista de comandos |
 | `/ritmo 10 52:30` | Ritmo, velocidad y tiempos estimados (fórmula de Riegel) |
 | `/registrar hoy corrí 8 km en 44 min` | Extrae distancia/tiempo/tipo con salida estructurada (JSON validado con Pydantic) y pide confirmación con botones |
-| Foto de un reloj o app | Gemini multimodal lee la captura y propone registrar el entrenamiento |
+| Foto de un reloj o app | Gemini multimodal lee la captura y propone registrar el entrenamiento; si la foto no es un entrenamiento, la comenta en el contexto de la conversación |
+| Nota de voz 🎤 | Gemini escucha el audio (hasta 2 min) y responde en el contexto; la conversación sigue después |
 | `/resumen` | Totales y detalle de los últimos 7 días (SQLite) |
 | `/plan` | Flujo guiado (distancia → semanas → días) y plan generado por Gemini |
 | `/olvidar` · `/borrar_entrenos` | Borra la conversación · borra los entrenamientos guardados |

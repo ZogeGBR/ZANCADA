@@ -1,4 +1,4 @@
-"""Conexión con Gemini mediante la Interactions API, en modo SIN ESTADO (Hito 2 + TIF).
+"""Conexión con Gemini mediante la Interactions API, en modo SIN ESTADO (Hito 2 + TIF + Hito 4).
 
 store=False: Google no guarda la conversación. En cada consulta se envían el
 prompt de sistema, el historial (leído de SQLite) y el mensaje nuevo.
@@ -37,15 +37,21 @@ class ErrorGemini(Exception):
         self.codigo = codigo
 
 
-def armar_entrada(historial: list[tuple[str, str]], mensaje_nuevo: str) -> list[dict]:
+def armar_entrada(historial: list[tuple[str, str]], mensaje_nuevo: str,
+                  adjuntos: list[tuple[str, bytes, str]] | None = None) -> list[dict]:
     """Convierte el historial guardado en la lista de pasos (steps) de la Interactions API
-    y agrega al final el mensaje nuevo del usuario."""
+    y agrega al final el mensaje nuevo del usuario, con sus adjuntos si los tiene.
+
+    Cada adjunto es (tipo, bytes, mime) y tipo es "image" (foto) o "audio" (nota de voz)."""
     tipo_de_paso = {"user": "user_input", "model": "model_output"}
     pasos = [
         {"type": tipo_de_paso[rol], "content": [{"type": "text", "text": texto}]}
         for rol, texto in historial
     ]
-    pasos.append({"type": "user_input", "content": [{"type": "text", "text": mensaje_nuevo}]})
+    contenido = [{"type": "text", "text": mensaje_nuevo}]
+    for tipo, datos, mime in adjuntos or []:
+        contenido.append({"type": tipo, "data": base64.b64encode(datos).decode(), "mime_type": mime})
+    pasos.append({"type": "user_input", "content": contenido})
     return pasos
 
 
@@ -62,14 +68,15 @@ async def _crear(**kwargs):
 
 
 async def consultar_gemini(historial: list[tuple[str, str]], mensaje: str,
-                           user_id: int | None = None, usar_herramientas: bool = True) -> str:
+                           user_id: int | None = None, usar_herramientas: bool = True,
+                           adjuntos: list[tuple[str, bytes, str]] | None = None) -> str:
     """Envía a Gemini la conversación y devuelve el texto final.
 
     Si el modelo pide ejecutar herramientas (function calling), el bot las corre y le
     devuelve los resultados; se repite hasta que responde con texto. Como no hay estado
     en Google, en cada vuelta se reenvían los pasos anteriores (incluidos los del modelo).
     """
-    entrada = armar_entrada(historial, mensaje)
+    entrada = armar_entrada(historial, mensaje, adjuntos)
     for _ in range(MAX_RONDAS_HERRAMIENTAS + 1):
         args = {"system_instruction": PROMPT_SISTEMA, "input": entrada}
         if usar_herramientas:

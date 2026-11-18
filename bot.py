@@ -8,8 +8,10 @@ Qué hace esta versión:
   /olvidar -> borra el historial de la conversación con este usuario
   /registrar <texto> -> extrae un entrenamiento de un texto libre (salida estructurada)
   /resumen -> tus entrenamientos de los últimos 7 días
-  /plan    -> flujo guiado: arma un plan de entrenamiento con Gemini
-  foto     -> lee una captura de tu reloj/app y propone registrar el entrenamiento
+  /plan    -> flujo guiado (distancia, semanas, días, confirmación): arma un plan con Gemini
+  foto     -> lee una captura de tu reloj/app y propone registrar el entrenamiento;
+              si no es un entrenamiento, la comenta en el contexto de la conversación
+  voz      -> nota de voz: Gemini la escucha y responde en el contexto de la conversación
   texto    -> conversa con Gemini (Interactions API sin estado) que puede usar
               herramientas (clima, ritmo, registrar, resumir); memoria en SQLite
   errores  -> se registran en consola y el usuario recibe un aviso amable
@@ -70,8 +72,8 @@ TEXTO_AYUDA = (
     "/plan - Armamos juntos un plan de entrenamiento\n"
     "/olvidar - Borro nuestra conversación y empezamos de cero\n"
     "/borrar_entrenos - Borro todos tus entrenamientos guardados\n\n"
-    "También podés mandarme una foto de tu reloj o app 📸, preguntarme por el clima "
-    "para salir a correr o escribirme lo que quieras sobre running. "
+    "También podés mandarme una foto de tu reloj o app 📸, una nota de voz 🎤, preguntarme por el "
+    "clima para salir a correr o escribirme lo que quieras sobre running. "
     "Me acuerdo de lo que me contás, incluso si me reinician."
 )
 
@@ -173,6 +175,26 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await mensaje.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
 
 
+async def responder_con_adjuntos(update: Update, adjuntos: list[tuple[str, bytes, str]],
+                                 pedido: str, etiqueta: str) -> None:
+    """Como responder(), pero el mensaje trae una imagen o un audio. En el historial queda
+    `etiqueta` (no los bytes) junto con la respuesta, así la conversación sigue con ese contexto."""
+    mensaje = update.effective_message
+    user_id = update.effective_user.id
+    logger.info("Mensaje de %s con %s", user_id, ", ".join(t for t, _, _ in adjuntos))
+    await mensaje.chat.send_action(ChatAction.TYPING)
+    historial = await db.obtener_historial(user_id, MAX_MENSAJES_HISTORIAL)
+    try:
+        respuesta = await consultar_gemini(historial, pedido, user_id, adjuntos=adjuntos)
+    except ErrorGemini as error:
+        await mensaje.reply_text(describir_error(error))
+        return
+    await db.guardar_intercambio(user_id, etiqueta, respuesta)
+    respuesta = limpiar_markdown(respuesta)
+    for inicio in range(0, len(respuesta), LIMITE_TELEGRAM):
+        await mensaje.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
+
+
 # ---------------------------------------------------------------------------
 # TIF · Entrenamientos: extracción estructurada, fotos y confirmación
 # ---------------------------------------------------------------------------
@@ -181,28 +203,37 @@ def teclado_confirmacion() -> InlineKeyboardMarkup:
                                   InlineKeyboardButton("❌ Descartar", callback_data="entreno:no")]])
 
 
-async def proponer_entrenamiento(update: Update, context: ContextTypes.DEFAULT_TYPE, **fuente) -> None:
-    """Extrae un entrenamiento (de texto o imagen) y pide confirmación antes de guardarlo."""
+async def proponer_entrenamiento(update: Update, context: ContextTypes.DEFAULT_TYPE,
+                                 avisar_si_falla: bool = True, etiqueta: str | None = None, **fuente) -> str:
+    """Extrae un entrenamiento (de texto o imagen) y pide confirmación antes de guardarlo.
+
+    Devuelve "propuesto", "error" (falló Gemini y ya se avisó) o "no_entendido" (no era un
+    entrenamiento; solo se avisa si avisar_si_falla). Lo propuesto queda en el historial
+    (con `etiqueta` como mensaje del usuario) para que la conversación pueda seguir sobre eso."""
     mensaje = update.effective_message
     await mensaje.chat.send_action(ChatAction.TYPING)
     try:
         entreno = await extraer_entrenamiento(**fuente)
     except ErrorGemini as error:
         await mensaje.reply_text(describir_error(error))
-        return
+        return "error"
     if entreno is None:
-        await mensaje.reply_text(
-            "No pude sacar distancia y tiempo de eso 🤔. Probá con algo como: "
-            "/registrar hoy corrí 8 km en 44 minutos"
-        )
-        return
+        if avisar_si_falla:
+            await mensaje.reply_text(
+                "No pude sacar distancia y tiempo de eso 🤔. Probá con algo como: "
+                "/registrar hoy corrí 8 km en 44 minutos"
+            )
+        return "no_entendido"
     context.user_data["pendiente"] = entreno.model_dump()
-    await mensaje.reply_text(
+    propuesta = (
         f"Entendí esto 👇\n📏 {entreno.km:g} km en {formatear_minutos(entreno.minutos)} "
         f"({formatear_minutos(entreno.minutos / entreno.km)} min/km)\n🏷️ {entreno.tipo}"
-        + (f"\n📝 {entreno.notas}" if entreno.notas else "") + "\n\n¿Lo guardo?",
-        reply_markup=teclado_confirmacion(),
+        + (f"\n📝 {entreno.notas}" if entreno.notas else "") + "\n\n¿Lo guardo?"
     )
+    await mensaje.reply_text(propuesta, reply_markup=teclado_confirmacion())
+    # Hito 4: lo propuesto entra en el historial, así después se puede preguntar por eso.
+    await db.guardar_intercambio(update.effective_user.id, etiqueta or fuente.get("texto") or "[Entrenamiento]", propuesta)
+    return "propuesto"
 
 
 async def registrar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -211,15 +242,46 @@ async def registrar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not texto:
         await update.message.reply_text("Contame qué corriste 🏃‍♀️. Ej: /registrar hoy corrí 8 km en 44 minutos")
         return
-    await proponer_entrenamiento(update, context, texto=texto)
+    await proponer_entrenamiento(update, context, texto=texto, etiqueta=f"/registrar {texto}")
 
 
 async def foto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Foto de un reloj/app: Gemini (multimodal) lee los datos y se pide confirmación."""
+    """Foto (con o sin leyenda): si es un reloj/app con un entrenamiento, se propone registrarlo;
+    si no, Gemini la comenta en el contexto de la conversación."""
     mensaje = update.effective_message
     archivo = await mensaje.photo[-1].get_file()  # la de mayor resolución
     datos = bytes(await archivo.download_as_bytearray())
-    await proponer_entrenamiento(update, context, texto=mensaje.caption, imagen=(datos, "image/jpeg"))
+    leyenda = (mensaje.caption or "").strip()
+    etiqueta = "[Foto]" + (f" {leyenda}" if leyenda else "")
+    resultado = await proponer_entrenamiento(update, context, avisar_si_falla=False, etiqueta=etiqueta,
+                                             texto=leyenda or None, imagen=(datos, "image/jpeg"))
+    if resultado == "no_entendido":
+        pedido = ("El usuario te mandó esta foto" + (f" con la leyenda: {leyenda}" if leyenda else "") +
+                  ". Respondé en el contexto de Zancada (running y entrenamiento) a lo que se ve en la foto. "
+                  "Si no tiene nada que ver con correr, decilo con amabilidad y volvé al entrenamiento.")
+        await responder_con_adjuntos(update, [("image", datos, "image/jpeg")], pedido, etiqueta)
+
+
+MAX_SEGUNDOS_VOZ = 120  # notas más largas gastan mucha cuota: se piden más cortas
+
+
+async def voz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Nota de voz (o audio): Gemini la escucha y responde en el contexto de la conversación."""
+    mensaje = update.effective_message
+    audio = mensaje.voice or mensaje.audio
+    if (audio.duration or 0) > MAX_SEGUNDOS_VOZ:
+        await mensaje.reply_text(f"Esa nota es larga ⏱️. ¿Me la mandás de hasta {MAX_SEGUNDOS_VOZ // 60} minutos?")
+        return
+    archivo = await audio.get_file()
+    datos = bytes(await archivo.download_as_bytearray())
+    mime = audio.mime_type or "audio/ogg"  # las notas de voz de Telegram son OGG/Opus
+    leyenda = (mensaje.caption or "").strip()
+    pedido = ("El usuario te mandó una nota de voz" + (f" con la leyenda: {leyenda}" if leyenda else "") +
+              ". Escuchala y respondé a lo que dice, como coach de running. Empezá con una línea corta que "
+              "resuma lo que escuchaste, con este formato: Escuché: «…». Si pide algo que podés resolver "
+              "con tus herramientas (clima, ritmo, registrar o resumir entrenamientos), usalas.")
+    await responder_con_adjuntos(update, [("audio", datos, mime)], pedido,
+                                 "[Nota de voz]" + (f" {leyenda}" if leyenda else ""))
 
 
 async def confirmar_entrenamiento(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -253,9 +315,9 @@ async def borrar_entrenos(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 # ---------------------------------------------------------------------------
-# TIF · /plan: flujo guiado con ConversationHandler (distancia -> semanas -> días)
+# TIF · /plan: flujo guiado con ConversationHandler (distancia -> semanas -> días -> confirmación)
 # ---------------------------------------------------------------------------
-PLAN_DISTANCIA, PLAN_SEMANAS, PLAN_DIAS = range(3)
+PLAN_DISTANCIA, PLAN_SEMANAS, PLAN_DIAS, PLAN_CONFIRMAR = range(4)
 
 
 async def plan_inicio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -296,10 +358,37 @@ async def plan_dias(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     n = await _numero(update, 2, 6)
     if n is None:
         return PLAN_DIAS
-    datos = context.user_data.pop("plan")
+    datos = context.user_data["plan"]
     datos["dias"] = n
+    botones = [[InlineKeyboardButton("✅ Armar plan", callback_data="planok:si"),
+                InlineKeyboardButton("❌ Cancelar", callback_data="planok:no")]]
+    await update.message.reply_text(
+        f"Resumen de tu plan 👇\n🎯 {datos['distancia']}\n🗓️ {datos['semanas']} semanas\n"
+        f"🏃 {datos['dias']} días por semana\n\n¿Lo armo?",
+        reply_markup=InlineKeyboardMarkup(botones),
+    )
+    return PLAN_CONFIRMAR
+
+
+async def plan_texto_en_confirmacion(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Tocá ✅ para armar el plan o ❌ para cancelar (también podés usar /cancelar).")
+    return PLAN_CONFIRMAR
+
+
+async def plan_confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Botones ✅/❌ del resumen: recién acá se le pide el plan a Gemini."""
+    consulta = update.callback_query
+    await consulta.answer()
+    datos = context.user_data.pop("plan", None)
+    if consulta.data == "planok:no" or not datos:
+        await consulta.edit_message_text("Plan cancelado. Cuando quieras, /plan de nuevo 🙂")
+        return ConversationHandler.END
+    await consulta.edit_message_text(
+        f"Plan confirmado ✅ {datos['distancia']} · {datos['semanas']} semanas · {datos['dias']} días por semana"
+    )
+    mensaje = consulta.message
     user_id = update.effective_user.id
-    await update.message.chat.send_action(ChatAction.TYPING)
+    await mensaje.chat.send_action(ChatAction.TYPING)
     pedido = (f"Armame un plan de entrenamiento para {datos['distancia']} en {datos['semanas']} semanas, "
               f"entrenando {datos['dias']} días por semana. Resumilo por semana, con progresión gradual y "
               "descanso. Tené en cuenta lo que ya sepas de mí. Cerrá recordando que es orientativo.")
@@ -307,12 +396,12 @@ async def plan_dias(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         respuesta = await consultar_gemini(historial, pedido, user_id)
     except ErrorGemini as error:
-        await update.message.reply_text(describir_error(error))
+        await mensaje.reply_text(describir_error(error))
         return ConversationHandler.END
     await db.guardar_intercambio(user_id, pedido, respuesta)
     respuesta = limpiar_markdown(respuesta)
     for inicio in range(0, len(respuesta), LIMITE_TELEGRAM):
-        await update.message.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
+        await mensaje.reply_text(respuesta[inicio:inicio + LIMITE_TELEGRAM])
     return ConversationHandler.END
 
 
@@ -338,9 +427,9 @@ async def comando_desconocido(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def no_texto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Fotos, audios, stickers, etc.: por ahora solo se entiende texto."""
+    """Stickers, videos, documentos, etc.: se entienden texto, fotos y notas de voz."""
     await update.effective_message.reply_text(
-        "Solo entiendo texto y fotos de entrenamientos 🙂. Contame con palabras o probá /ritmo 10 52:30."
+        "Solo entiendo texto, fotos y notas de voz 🙂. Contame con palabras o probá /ritmo 10 52:30."
     )
 
 
@@ -391,11 +480,14 @@ def main() -> None:
             PLAN_DISTANCIA: [CallbackQueryHandler(plan_distancia, pattern=r"^plan:")],
             PLAN_SEMANAS: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_semanas)],
             PLAN_DIAS: [MessageHandler(filters.TEXT & ~filters.COMMAND, plan_dias)],
+            PLAN_CONFIRMAR: [CallbackQueryHandler(plan_confirmar, pattern=r"^planok:"),
+                             MessageHandler(filters.TEXT & ~filters.COMMAND, plan_texto_en_confirmacion)],
         },
         fallbacks=[CommandHandler("cancelar", plan_cancelar)],
     ))
     app.add_handler(CallbackQueryHandler(confirmar_entrenamiento, pattern=r"^entreno:"))
     app.add_handler(MessageHandler(filters.PHOTO & filters.UpdateType.MESSAGE, foto))
+    app.add_handler(MessageHandler((filters.VOICE | filters.AUDIO) & filters.UpdateType.MESSAGE, voz))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE, responder))
     app.add_handler(MessageHandler(filters.COMMAND & filters.UpdateType.MESSAGE, comando_desconocido))
     app.add_handler(MessageHandler(~filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE, no_texto))  # va último
