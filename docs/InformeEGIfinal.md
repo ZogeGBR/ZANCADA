@@ -157,5 +157,5 @@ Después de la corrección (con viñetas y sin asteriscos):
 | Informe del Hito 2 | `docs/INFORME_HITO2.md` |
 | Capturas del TIF | `docs/capturas/tif/` |
 | Presentación oral y guion | Presentación y guion compartidos por el equipo (fuera del repositorio) |
-| Estados de avance (Hitos 3 y 4) | `docs/ESTADO_HITO3.md` y `docs/ESTADO_HITO4.md` (con PDF) |
+| Entrega de los Hitos 3 y 4 (estados de avance, repo y video) | `docs/ENTREGA_HITOS_3_Y_4.md` (con PDF) |
 | Lista de pendientes | `docs/PENDIENTES.md` |
