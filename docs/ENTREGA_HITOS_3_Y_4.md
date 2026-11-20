@@ -1,26 +1,28 @@
-# Zancada · Hitos 3 y 4: entrega
+# Hitos 3 y 4 - Zancada
 
-**Materia:** Sistemas Inteligentes Aplicados 2026 · ITU UNCUYO · Prof. Ing. Miguel Pérez Díaz  
-**Integrantes:** Zoe Garcia Badiola, Ignacio Morichetti Ramal, Matias Lopez, Gonzalo Laspada y Luciano Malanca  
-**Repositorio:** https://github.com/ZogeGBR/zancada (rama `main`)  
-**Video (Hitos 3 y 4):** https://drive.google.com/file/d/1M38wIBaSUkUb34a8bdIBAFhjeFuuhU-4/view?usp=sharing  
+Sistemas Inteligentes Aplicados 2026 - ITU UNCUYO
+Profesor: Ing. Miguel Pérez Díaz
 
-## Hito 3 · Obligatorios parciales · Estado de avance
+Integrantes: Zoe Garcia Badiola, Ignacio Morichetti Ramal, Matias Lopez, Gonzalo Laspada y Luciano Malanca
 
-Zancada es un bot de Telegram que actúa como coach de running con Gemini. Los obligatorios ya funcionan:
+Repositorio: https://github.com/ZogeGBR/zancada (rama main)
 
-- **Gemini con personalidad:** responde como coach de running (rol, tono y reglas en `prompts.py`) y deriva con amabilidad lo que no tiene que ver con correr.
-- **Memoria:** el historial de cada usuario se guarda en SQLite y se reenvía a Gemini en cada consulta (`store=False`), así que la conversación continúa incluso después de reiniciar el bot.
-- **Reinicio y borrado:** `/start` presenta el bot y `/olvidar` borra el historial del usuario.
-- **Función propia:** Gemini llama herramientas con function calling (`clima_para_correr` con Open-Meteo, `calcular_ritmo`); la terminal muestra cada llamada y su resultado.
-- **Errores y claves:** los errores 429, 401, 403 y 5xx se traducen a avisos amables; las claves están solo en `.env`, que no se sube al repositorio.
+Video de los Hitos 3 y 4: https://drive.google.com/file/d/1M38wIBaSUkUb34a8bdIBAFhjeFuuhU-4/view?usp=sharing
 
-**Pendiente:** ningún obligatorio.
+## Estado de avance del Hito 3
 
-## Hito 4 · Módulos avanzados · Estado de avance
+Zancada es un bot de Telegram que funciona como coach de running y usa Gemini. Los puntos obligatorios del hito ya están funcionando. El bot responde con una personalidad definida en el prompt de sistema (tono cercano, voseo y frases cortas) y guarda el historial de cada usuario en SQLite, así que recuerda la conversación aunque se reinicie. Con /start se presenta y con /olvidar se borra lo guardado. Como función propia, Gemini puede pedirle al bot que consulte el clima en Open-Meteo para recomendar horarios o que calcule un ritmo, y en la terminal se ve cada llamada con su resultado. Los errores de la API (cuota, clave inválida, servidor caído) se traducen a mensajes claros y las claves están en un archivo .env que no se sube al repositorio.
 
-- **Salida estructurada:** `/registrar hoy corrí 8 km en 44 min` pide a Gemini un JSON con esquema (`km`, `minutos`, `tipo`, `notas`), lo valida con Pydantic, pide confirmación con botones y lo guarda en SQLite. Los datos absurdos o fuera de esquema se rechazan.
-- **Multimodalidad:** el bot acepta fotos (con o sin leyenda) y notas de voz. Una captura de reloj se lee y se propone como entrenamiento; una nota de voz se escucha y se responde en el contexto del bot. Foto y audio quedan en el historial, por lo que el mensaje siguiente continúa la conversación.
-- **Flujo guiado:** `/plan` pregunta distancia, semanas y días por semana, valida cada dato (por ejemplo, 9 días se rechaza), muestra un resumen con botones Armar plan o Cancelar y recién al confirmar genera el plan. `/cancelar` permite salir a mitad del flujo.
+Todo lo obligatorio está resuelto, no nos queda nada pendiente de este hito.
 
-Las 52 pruebas de integración pasan (`python tests/test_integracion.py`). **Limitaciones:** la lectura de fotos depende de su legibilidad y las notas de voz se limitan a 2 minutos.
+## Estado de avance del Hito 4
+
+Sumamos los tres módulos avanzados.
+
+Para la salida estructurada, el comando /registrar toma un texto como "hoy corrí 8 km en 44 minutos" y le pide a Gemini un JSON con distancia, tiempo, tipo de entrenamiento y notas. Ese JSON se valida con Pydantic, el usuario lo confirma con botones y recién ahí se guarda en la base de datos. Si los datos no tienen sentido, no se guardan.
+
+En multimodalidad, el bot entiende fotos y notas de voz. Si la foto es la captura de un reloj, propone registrar el entrenamiento; si no, la comenta como parte de la conversación. Las notas de voz las escucha Gemini y las responde en el mismo chat. La foto y el audio quedan en el historial, por eso un mensaje posterior sigue la conversación con ese contexto.
+
+El flujo guiado es el comando /plan. Pregunta la distancia, las semanas y los días por semana, y rechaza los datos inválidos (por ejemplo, 9 días por semana). Al final muestra un resumen para confirmar o cancelar, y solo si se confirma Gemini arma el plan. Con /cancelar se puede salir en cualquier momento.
+
+Las 52 pruebas automáticas pasan (python tests/test_integracion.py). Como limitaciones, la lectura de fotos depende de que la captura se vea bien y las notas de voz están limitadas a 2 minutos.
